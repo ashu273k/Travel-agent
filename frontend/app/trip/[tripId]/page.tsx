@@ -47,8 +47,8 @@ const INITIAL_STEPS: PipelineStep[] = [
   },
   {
     id: "done",
-    label: "Done!",
-    description: "Your itinerary is ready.",
+    label: "Finalising",
+    description: "Your itinerary is almost ready!",
     status: "pending",
   },
 ];
@@ -91,18 +91,17 @@ export default function TripPage({
     setSteps((prev) => {
       const next = prev.map((s) => {
         if (s.id === id) return { ...s, status };
-        // Mark all prior steps as done when a step becomes active
         if (status === "active") {
           const targetIdx = prev.findIndex((x) => x.id === id);
           const currIdx = prev.findIndex((x) => x.id === s.id);
           if (currIdx < targetIdx && s.status !== "done") {
-            return { ...s, status: "done" };
+            return { ...s, status: "done" as const };
           }
         }
         return s;
       });
       if (doneAll) {
-        return next.map((s) => ({ ...s, status: "done" }));
+        return next.map((s) => ({ ...s, status: "done" as const }));
       }
       return next;
     });
@@ -115,27 +114,26 @@ export default function TripPage({
       case "graph:node_start": {
         const node = (pl?.node as string) ?? "";
         const stepId = mapNodeToStepId(node);
-        if (stepId) {
-          updateStep(stepId, "active");
-        }
+        if (stepId) updateStep(stepId, "active");
         break;
       }
-      case "search_complete":
+      // Fix: SSE events arrive with full "graph:" prefix
+      case "graph:search_complete":
         updateStep("search", "done");
         updateStep("assemble", "active");
         break;
-      case "conflict_detected":
+      case "graph:conflict_detected":
         updateStep("assemble", "done");
         updateStep("conflicts", "active");
         setConflictCount((pl?.count as number) ?? 1);
         break;
-      case "conflict_resolved":
+      case "graph:conflict_resolved":
         updateStep("conflicts", "done");
         break;
-      case "complete":
-        // handled in onDone
+      case "graph:day_assembled":
+        updateStep("assemble", "active");
         break;
-      case "error":
+      case "graph:error":
         setErrorMsg(String(pl?.message ?? "An unexpected error occurred."));
         setPageState("error");
         break;
@@ -174,7 +172,6 @@ export default function TripPage({
       return;
     }
 
-    // Mark first step as active immediately
     setSteps((prev) =>
       prev.map((s, i) => (i === 0 ? { ...s, status: "active" } : s))
     );
@@ -203,15 +200,11 @@ export default function TripPage({
     }
   };
 
-  const handleRetry = () => {
-    router.push("/");
-  };
-
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Top nav bar */}
-      <nav className="sticky top-0 z-30 bg-white/90 backdrop-blur-sm border-b border-slate-100 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      {/* Top nav */}
+      <nav className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-100 shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => router.push("/")}
             className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition text-sm font-medium"
@@ -221,10 +214,10 @@ export default function TripPage({
           </button>
 
           <div className="flex items-center gap-2">
-            <div className="bg-indigo-100 rounded-xl p-1.5">
-              <Plane className="text-indigo-600" size={16} />
+            <div className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl p-1.5">
+              <Plane className="text-white" size={15} />
             </div>
-            <span className="text-slate-800 font-bold text-sm">TravelAI</span>
+            <span className="text-slate-800 font-bold text-sm tracking-tight">TravelAI</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -235,13 +228,13 @@ export default function TripPage({
                   className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition"
                   title="Refresh"
                 >
-                  <RefreshCw size={16} />
+                  <RefreshCw size={15} />
                 </button>
                 <button
                   onClick={() => setShowChangePanel(true)}
-                  className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-2 rounded-xl transition"
+                  className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-2 rounded-xl transition shadow-sm"
                 >
-                  <MessageSquarePlus size={14} />
+                  <MessageSquarePlus size={13} />
                   Request Change
                 </button>
               </>
@@ -250,41 +243,41 @@ export default function TripPage({
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        {/* Streaming / Loading state */}
+      <main className="max-w-5xl mx-auto px-4 py-8">
+        {/* Streaming state */}
         {pageState === "streaming" && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <div className="w-full max-w-md bg-white rounded-3xl shadow-lg border border-slate-100 p-8">
+          <div className="flex flex-col items-center justify-center min-h-[70vh]">
+            <div className="w-full max-w-lg">
               <StreamProgress steps={steps} conflictCount={conflictCount} />
             </div>
-            <p className="text-slate-400 text-xs mt-6">
-              Session: <span className="font-mono">{sessionId.slice(0, 16)}…</span>
+            <p className="text-slate-400 text-xs mt-8 font-mono">
+              {sessionId.slice(0, 20)}…
             </p>
           </div>
         )}
 
         {/* Error state */}
         {pageState === "error" && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-6">
+          <div className="flex flex-col items-center justify-center min-h-[70vh] text-center gap-6">
             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
-              <AlertTriangle className="text-red-500" size={36} />
+              <AlertTriangle className="text-red-500" size={32} />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">Something Went Wrong</h2>
-              <p className="text-slate-500 max-w-sm">
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">Something went wrong</h2>
+              <p className="text-slate-500 max-w-sm text-sm leading-relaxed">
                 {errorMsg ?? "An unexpected error occurred. Please try planning your trip again."}
               </p>
             </div>
             <div className="flex gap-3">
               <button
-                onClick={handleRetry}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-2xl transition shadow-md"
+                onClick={() => router.push("/")}
+                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-2xl transition shadow-md text-sm"
               >
                 Plan Again
               </button>
               <button
                 onClick={fetchAndShowItinerary}
-                className="px-6 py-3 bg-white border border-slate-200 hover:border-indigo-300 text-slate-600 hover:text-indigo-600 font-semibold rounded-2xl transition"
+                className="px-6 py-3 bg-white border border-slate-200 hover:border-indigo-300 text-slate-600 hover:text-indigo-600 font-semibold rounded-2xl transition text-sm"
               >
                 Try Load Anyway
               </button>
@@ -294,23 +287,23 @@ export default function TripPage({
 
         {/* Done — show itinerary */}
         {pageState === "done" && itinerary && (
-          <div className="space-y-6">
-            {/* Success banner */}
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4 flex items-center gap-3">
-              <CheckCircle2 className="text-emerald-500 flex-shrink-0" size={22} />
+          <div className="space-y-6 animate-fade-in">
+            {/* Success + confirm banner */}
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl px-6 py-5 flex items-center gap-4 shadow-lg">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 className="text-white" size={20} />
+              </div>
               <div className="flex-1">
-                <p className="text-emerald-800 font-semibold text-sm">
-                  Your itinerary is ready!
-                </p>
-                <p className="text-emerald-600 text-xs mt-0.5">
-                  Review the details below, then confirm your booking.
+                <p className="text-white font-bold text-base">Your itinerary is ready!</p>
+                <p className="text-emerald-100 text-sm mt-0.5">
+                  Review the plan below, then confirm to lock in your booking.
                 </p>
               </div>
               {!confirmed ? (
                 <button
                   onClick={handleConfirmBooking}
                   disabled={confirming}
-                  className="flex-shrink-0 flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition disabled:opacity-70"
+                  className="flex-shrink-0 flex items-center gap-2 bg-white text-emerald-700 hover:bg-emerald-50 text-sm font-bold px-5 py-2.5 rounded-xl transition shadow-sm disabled:opacity-70"
                 >
                   {confirming ? (
                     <>
@@ -325,8 +318,8 @@ export default function TripPage({
                   )}
                 </button>
               ) : (
-                <div className="flex items-center gap-1.5 text-emerald-600 font-semibold text-sm">
-                  <CheckCircle2 size={16} />
+                <div className="flex items-center gap-2 text-white font-semibold text-sm bg-white/20 px-4 py-2 rounded-xl">
+                  <CheckCircle2 size={15} />
                   Confirmed!
                 </div>
               )}
@@ -340,29 +333,28 @@ export default function TripPage({
 
             <ItineraryView itinerary={itinerary} />
 
-            {/* Floating change button (mobile) */}
+            {/* Mobile FAB */}
             <div className="fixed bottom-6 right-6 z-20 md:hidden">
               <button
                 onClick={() => setShowChangePanel(true)}
                 className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-3.5 rounded-full shadow-xl transition"
               >
                 <MessageSquarePlus size={18} />
-                Request Change
+                Change
               </button>
             </div>
           </div>
         )}
 
-        {/* Done but no itinerary loaded */}
+        {/* Done but itinerary still loading */}
         {pageState === "done" && !itinerary && (
           <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
             <Loader2 className="text-indigo-400 animate-spin" size={32} />
-            <p className="text-slate-500">Loading your itinerary…</p>
+            <p className="text-slate-500 text-sm">Loading your itinerary…</p>
           </div>
         )}
       </main>
 
-      {/* Change panel */}
       {showChangePanel && sessionId && (
         <ChangeChat sessionId={sessionId} onClose={() => setShowChangePanel(false)} />
       )}

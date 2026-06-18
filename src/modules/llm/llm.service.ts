@@ -30,11 +30,18 @@ export class LlmService {
     this.geminiKey = this.configService.get<string>("GEMINI_API_KEY");
     this.openRouterKey = this.configService.get<string>("OPENROUTER_API_KEY");
     this.groqKey = this.configService.get<string>("GROQ_API_KEY");
+    // Strip surrounding quotes/whitespace — common artifact when editing .env files
+    if (this.groqKey) {
+      this.groqKey = this.groqKey.replace(/^["'`\s]+|["'`\s]+$/g, '').trim();
+      if (this.groqKey && this.groqKey.length > 8) {
+        this.logger.log(`Groq key: ${this.groqKey.slice(0, 8)}...${this.groqKey.slice(-4)} (${this.groqKey.length} chars)`);
+      }
+    }
 
     const hasKeys = (this.openAiKey && this.openAiKey !== "sk-...") ||
                     (this.geminiKey && this.geminiKey !== "AIza...") ||
                     (this.openRouterKey && this.openRouterKey !== "sk-or-...") ||
-                    (this.groqKey && this.groqKey !== "gsk_...");
+                    (this.groqKey && this.groqKey !== "gsk_..." && this.groqKey.startsWith("gsk_"));
 
     if (!hasKeys) {
       this.logger.warn("No LLM API keys detected. Operating in OFFLINE MOCK MODE.");

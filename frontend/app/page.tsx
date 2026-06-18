@@ -1,428 +1,313 @@
 "use client";
 
-import { useState, useId } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plane,
   Sparkles,
-  Globe2,
-  Map,
-  Star,
   Loader2,
   ChevronRight,
+  MapPin,
+  Users,
+  Calendar,
+  ChevronDown,
+  ArrowRight,
 } from "lucide-react";
 import { submitBrief } from "@/lib/api";
 
-const INTERESTS = [
-  { id: "food", label: "Food & Cuisine" },
-  { id: "history", label: "History & Culture" },
-  { id: "nature", label: "Nature & Outdoors" },
-  { id: "adventure", label: "Adventure Sports" },
-  { id: "shopping", label: "Shopping" },
-  { id: "art", label: "Art & Museums" },
+const EXAMPLE_TRIPS: { label: string; brief: string }[] = [
+  { label: "Mumbai → Goa", brief: "Mumbai to Goa for 4 days in August, 2 people, budget ₹40,000. Beach, seafood, water sports." },
+  { label: "Delhi → Manali", brief: "Delhi to Manali for 6 days in July, 4 friends, budget ₹60,000-80,000. Adventure trekking, Rohtang Pass." },
+  { label: "Bangalore → Dubai", brief: "Bangalore to Dubai for 5 days in December, 2 adults, budget ₹1.5L. Sightseeing, shopping, desert safari." },
+  { label: "Chennai → Bangkok", brief: "Chennai to Bangkok for 7 days in September, couple, budget ₹1L-1.5L. Temples, street food, Chatuchak market." },
+  { label: "Mumbai → Paris", brief: "Mumbai to Paris for 8 days in October, 2 adults, budget ₹2.5L-3L. Art, history, fine dining, Eiffel Tower." },
 ];
 
-const ACCOMMODATION_PREFS = [
-  { id: "pool", label: "Swimming Pool" },
-  { id: "city-center", label: "City Center" },
-  { id: "beach", label: "Beach Access" },
-  { id: "budget", label: "Budget Friendly" },
-  { id: "luxury", label: "Luxury" },
+const FEATURES = [
+  { icon: "✈️", label: "Real flight search" },
+  { icon: "🏨", label: "Hotel recommendations" },
+  { icon: "🗺️", label: "Day-by-day itinerary" },
+  { icon: "⚡", label: "Conflict detection" },
+  { icon: "🤖", label: "AI-powered" },
 ];
-
-const CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED"];
-
-function CheckboxGroup({
-  options,
-  selected,
-  onChange,
-}: {
-  options: { id: string; label: string }[];
-  selected: string[];
-  onChange: (v: string[]) => void;
-}) {
-  const toggle = (id: string) => {
-    onChange(
-      selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]
-    );
-  };
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((opt) => {
-        const checked = selected.includes(opt.id);
-        return (
-          <button
-            key={opt.id}
-            type="button"
-            onClick={() => toggle(opt.id)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border ${
-              checked
-                ? "bg-indigo-600 border-indigo-600 text-white shadow-md"
-                : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600"
-            }`}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 export default function HomePage() {
   const router = useRouter();
-  const uid = useId();
-
-  const [tab, setTab] = useState<"quick" | "detailed">("quick");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [brief, setBrief] = useState("");
+  const [showDetails, setShowDetails] = useState(false);
 
-  // Quick brief
-  const [quickText, setQuickText] = useState("");
-
-  // Detailed form
+  // Structured detail fields
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
   const [departureDate, setDepartureDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [travellers, setTravellers] = useState(2);
-  const [budgetMin, setBudgetMin] = useState(100000);
-  const [budgetMax, setBudgetMax] = useState(200000);
-  const [currency, setCurrency] = useState("INR");
-  const [interests, setInterests] = useState<string[]>([]);
-  const [accommodationPrefs, setAccommodationPrefs] = useState<string[]>([]);
-  const [specialRequirements, setSpecialRequirements] = useState("");
+
+  const handleExampleClick = (example: string) => {
+    setBrief(example);
+    setError(null);
+    // Scroll briefly to textarea
+    const ta = document.querySelector("textarea");
+    ta?.focus();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
-    try {
-      let briefText = "";
+    let briefText = brief.trim();
 
-      if (tab === "quick") {
-        if (!quickText.trim()) {
-          setError("Please describe your trip.");
-          setLoading(false);
-          return;
-        }
-        briefText = quickText.trim();
-      } else {
-        if (!origin || !destination || !departureDate) {
-          setError("Please fill in origin, destination, and departure date.");
-          setLoading(false);
-          return;
-        }
-        const parts = [
-          `I want to travel from ${origin} to ${destination}.`,
-          `Departure: ${departureDate}.`,
-          returnDate ? `Return: ${returnDate}.` : "",
-          `Travellers: ${travellers}.`,
-          `Budget: ${currency} ${budgetMin.toLocaleString()} to ${budgetMax.toLocaleString()}.`,
-          interests.length > 0 ? `Interests: ${interests.join(", ")}.` : "",
-          accommodationPrefs.length > 0
-            ? `Accommodation preferences: ${accommodationPrefs.join(", ")}.`
-            : "",
-          specialRequirements ? `Special requirements: ${specialRequirements}.` : "",
-        ]
-          .filter(Boolean)
-          .join(" ");
-        briefText = parts;
+    // If structured details are filled, append them to the brief
+    if (showDetails && (origin || destination || departureDate)) {
+      const extras: string[] = [];
+      if (origin) extras.push(`from ${origin}`);
+      if (destination) extras.push(`to ${destination}`);
+      if (departureDate) extras.push(`departing ${departureDate}`);
+      if (returnDate) extras.push(`returning ${returnDate}`);
+      if (travellers > 0) extras.push(`${travellers} traveller${travellers > 1 ? "s" : ""}`);
+      if (extras.length > 0) {
+        briefText = briefText
+          ? `${briefText}. Trip details: ${extras.join(", ")}.`
+          : `I want to travel ${extras.join(", ")}.`;
       }
+    }
 
-      const userId = `user_${uid.replace(/:/g, "")}`;
+    if (!briefText) {
+      setError("Please describe your trip or use one of the examples above.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const userId = `user_${Math.random().toString(36).slice(2, 10)}`;
       const { sessionId, tripId } = await submitBrief(userId, briefText);
       router.push(`/trip/${tripId}?session=${sessionId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen relative overflow-hidden">
-      {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700" />
-
-      {/* Animated blobs */}
-      <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-blue-400 opacity-20 blur-3xl animate-pulse" />
-      <div className="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-violet-400 opacity-20 blur-3xl animate-pulse delay-1000" />
-
-      {/* Floating icons */}
-      <div className="absolute top-8 left-8 text-white/20 pointer-events-none hidden lg:block">
-        <Globe2 size={48} />
-      </div>
-      <div className="absolute top-16 right-24 text-white/15 pointer-events-none hidden lg:block">
-        <Star size={32} />
-      </div>
-      <div className="absolute bottom-24 right-12 text-white/15 pointer-events-none hidden lg:block">
-        <Map size={40} />
+    <main className="min-h-screen relative overflow-hidden bg-slate-900">
+      {/* Background gradient mesh */}
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-indigo-950 to-violet-950" />
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-indigo-600 opacity-10 blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-violet-600 opacity-10 blur-[100px]" />
+        {/* Grid overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)`,
+            backgroundSize: "60px 60px",
+          }}
+        />
       </div>
 
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-12">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
-              <Plane className="text-white" size={28} />
-            </div>
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-16">
+        {/* Logo/Nav */}
+        <div className="absolute top-6 left-6 flex items-center gap-2">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2">
+            <Plane className="text-white" size={18} />
           </div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 tracking-tight">
-            Plan Your Perfect Trip
-          </h1>
-          <p className="text-blue-100 text-lg md:text-xl max-w-xl mx-auto font-light">
-            Describe your dream journey. Our AI handles the rest.
-          </p>
-          <div className="flex items-center justify-center gap-2 mt-3">
-            <Sparkles className="text-yellow-300" size={16} />
-            <span className="text-yellow-200 text-sm font-medium">
-              Powered by AI — flights, hotels &amp; activities in seconds
-            </span>
-            <Sparkles className="text-yellow-300" size={16} />
-          </div>
+          <span className="text-white font-bold text-sm tracking-tight">TravelAI</span>
         </div>
 
-        {/* Form card */}
-        <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b border-slate-100">
-            <button
-              type="button"
-              onClick={() => setTab("quick")}
-              className={`flex-1 py-4 text-sm font-semibold transition-all duration-200 ${
-                tab === "quick"
-                  ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              Quick Brief
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("detailed")}
-              className={`flex-1 py-4 text-sm font-semibold transition-all duration-200 ${
-                tab === "detailed"
-                  ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              Detailed Form
-            </button>
+        {/* Hero */}
+        <div className="text-center mb-12 max-w-3xl">
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 rounded-full px-4 py-1.5 text-sm text-white/70 mb-6">
+            <Sparkles size={14} className="text-yellow-400" />
+            Powered by AI — plan any trip in seconds
           </div>
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-5 leading-[1.1] tracking-tight">
+            Where do you
+            <span className="block bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
+              want to go?
+            </span>
+          </h1>
+          <p className="text-slate-400 text-lg md:text-xl max-w-lg mx-auto leading-relaxed">
+            Describe your trip in plain English. Our AI finds flights, books hotels, and builds a complete itinerary.
+          </p>
+        </div>
 
-          <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
-            {tab === "quick" ? (
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Describe your trip
-                </label>
-                <textarea
-                  value={quickText}
-                  onChange={(e) => setQuickText(e.target.value)}
-                  rows={6}
-                  placeholder="I want to fly from Mumbai to Paris for 5 days in August 2026, 2 adults, budget between ₹1.5L to ₹2L. Interested in art, food, and history. Prefer 4-star hotels near city centre."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 placeholder-slate-400 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 leading-relaxed"
-                />
-                <p className="text-xs text-slate-400 mt-2">
-                  Be as detailed as you like — dates, budget, preferences, special needs.
-                </p>
+        {/* Main card */}
+        <div className="w-full max-w-2xl">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Brief input */}
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-1 focus-within:border-indigo-500/50 transition-all duration-200">
+              <textarea
+                value={brief}
+                onChange={(e) => { setBrief(e.target.value); setError(null); }}
+                rows={4}
+                placeholder="e.g. I want to fly from Mumbai to Goa for 4 days in August 2026, 2 adults, budget around ₹40,000. Looking for beach activities and good seafood."
+                className="w-full bg-transparent px-5 py-4 text-white placeholder-white/30 text-sm resize-none focus:outline-none leading-relaxed"
+              />
+              <div className="flex items-center justify-between px-4 pb-3">
+                <span className="text-white/30 text-xs">
+                  {brief.length > 0 ? `${brief.length} chars` : "Be as detailed as you like"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setBrief("")}
+                  className={`text-white/30 hover:text-white/60 text-xs transition ${brief ? "visible" : "invisible"}`}
+                >
+                  Clear
+                </button>
               </div>
-            ) : (
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            </div>
+
+            {/* Example chips */}
+            <div>
+              <p className="text-white/40 text-xs mb-2 px-1">Try an example:</p>
+              <div className="flex flex-wrap gap-2">
+                {EXAMPLE_TRIPS.map((ex, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => handleExampleClick(ex.brief)}
+                    className="text-xs bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/60 hover:text-white/90 px-3 py-1.5 rounded-full transition-all duration-150"
+                  >
+                    {ex.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Optional details toggle */}
+            <button
+              type="button"
+              onClick={() => setShowDetails(!showDetails)}
+              className="flex items-center gap-2 text-white/50 hover:text-white/80 text-sm transition w-full px-1"
+            >
+              <ChevronDown
+                size={16}
+                className={`transition-transform duration-200 ${showDetails ? "rotate-180" : ""}`}
+              />
+              {showDetails ? "Hide" : "Add"} structured details
+            </button>
+
+            {/* Structured details */}
+            {showDetails && (
+              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-5 space-y-4 animate-fade-in">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                      Origin City
+                    <label className="block text-white/50 text-xs font-medium mb-1.5 flex items-center gap-1">
+                      <MapPin size={11} /> From
                     </label>
                     <input
                       type="text"
                       value={origin}
                       onChange={(e) => setOrigin(e.target.value)}
                       placeholder="Mumbai"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-white/25 focus:outline-none focus:border-indigo-500/50 transition"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                      Destination
+                    <label className="block text-white/50 text-xs font-medium mb-1.5 flex items-center gap-1">
+                      <MapPin size={11} /> To
                     </label>
                     <input
                       type="text"
                       value={destination}
                       onChange={(e) => setDestination(e.target.value)}
                       placeholder="Paris"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-white/25 focus:outline-none focus:border-indigo-500/50 transition"
                     />
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                      Departure Date
+                    <label className="block text-white/50 text-xs font-medium mb-1.5 flex items-center gap-1">
+                      <Calendar size={11} /> Departure
                     </label>
                     <input
                       type="date"
                       value={departureDate}
                       onChange={(e) => setDepartureDate(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition [color-scheme:dark]"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                      Return Date{" "}
-                      <span className="font-normal text-slate-400">(optional)</span>
+                    <label className="block text-white/50 text-xs font-medium mb-1.5 flex items-center gap-1">
+                      <Calendar size={11} /> Return <span className="text-white/30">(opt.)</span>
                     </label>
                     <input
                       type="date"
                       value={returnDate}
                       onChange={(e) => setReturnDate(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition [color-scheme:dark]"
                     />
                   </div>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                    Number of Travellers
+                  <label className="block text-white/50 text-xs font-medium mb-2 flex items-center gap-1">
+                    <Users size={11} /> Travellers
                   </label>
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
                       onClick={() => setTravellers(Math.max(1, travellers - 1))}
-                      className="w-9 h-9 rounded-full bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 font-bold flex items-center justify-center transition"
+                      className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-lg flex items-center justify-center transition"
                     >
                       −
                     </button>
-                    <span className="text-xl font-bold text-slate-800 w-8 text-center">
-                      {travellers}
-                    </span>
+                    <span className="text-white font-bold w-6 text-center">{travellers}</span>
                     <button
                       type="button"
                       onClick={() => setTravellers(travellers + 1)}
-                      className="w-9 h-9 rounded-full bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 font-bold flex items-center justify-center transition"
+                      className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-lg flex items-center justify-center transition"
                     >
                       +
                     </button>
-                    <span className="text-sm text-slate-400 ml-1">
-                      {travellers === 1 ? "adult" : "adults"}
-                    </span>
+                    <span className="text-white/40 text-sm">{travellers === 1 ? "adult" : "adults"}</span>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                    Budget Range
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={currency}
-                      onChange={(e) => setCurrency(e.target.value)}
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-                    >
-                      {CURRENCIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      value={budgetMin}
-                      onChange={(e) => setBudgetMin(Number(e.target.value))}
-                      placeholder="Min"
-                      className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                    />
-                    <span className="text-slate-400 font-medium">to</span>
-                    <input
-                      type="number"
-                      value={budgetMax}
-                      onChange={(e) => setBudgetMax(Number(e.target.value))}
-                      placeholder="Max"
-                      className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Interests
-                  </label>
-                  <CheckboxGroup
-                    options={INTERESTS}
-                    selected={interests}
-                    onChange={setInterests}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Accommodation Preferences
-                  </label>
-                  <CheckboxGroup
-                    options={ACCOMMODATION_PREFS}
-                    selected={accommodationPrefs}
-                    onChange={setAccommodationPrefs}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                    Special Requirements{" "}
-                    <span className="font-normal text-slate-400">(optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={specialRequirements}
-                    onChange={(e) => setSpecialRequirements(e.target.value)}
-                    placeholder="e.g. vegetarian meals, wheelchair accessible, honeymoon..."
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                  />
                 </div>
               </div>
             )}
 
+            {/* Error */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-700 text-sm font-medium">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-300 text-sm">
                 {error}
               </div>
             )}
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed text-base"
+              className="w-full bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all duration-200 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 disabled:opacity-60 disabled:cursor-not-allowed text-base"
             >
               {loading ? (
                 <>
                   <Loader2 size={20} className="animate-spin" />
-                  Planning your trip...
+                  Planning your trip…
                 </>
               ) : (
                 <>
-                  <Sparkles size={20} />
+                  <Sparkles size={18} />
                   Plan My Trip
-                  <ChevronRight size={18} />
+                  <ArrowRight size={18} />
                 </>
               )}
             </button>
           </form>
-        </div>
 
-        {/* Footer badges */}
-        <div className="flex flex-wrap gap-4 mt-8 justify-center">
-          {["AI-Powered Search", "Real-time Booking", "Conflict Detection", "Instant Itinerary"].map(
-            (label) => (
+          {/* Feature badges */}
+          <div className="flex flex-wrap gap-2 justify-center mt-8">
+            {FEATURES.map((f) => (
               <div
-                key={label}
-                className="bg-white/15 backdrop-blur-sm rounded-full px-4 py-1.5 text-white/90 text-xs font-medium border border-white/20"
+                key={f.label}
+                className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1 text-white/50 text-xs"
               >
-                {label}
+                <span>{f.icon}</span>
+                {f.label}
               </div>
-            )
-          )}
+            ))}
+          </div>
         </div>
       </div>
     </main>
