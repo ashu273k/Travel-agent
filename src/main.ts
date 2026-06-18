@@ -9,6 +9,8 @@ async function bootstrap() {
   const allowedOrigins = [
     "http://localhost:3001",
     "http://127.0.0.1:3001",
+    "https://travel-agent-gold.vercel.app",
+    "https://travel-agent-git-main-adhyayans-projects.vercel.app",
     ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
   ];
   app.enableCors({ origin: allowedOrigins, credentials: true });
