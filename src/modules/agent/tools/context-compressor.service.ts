@@ -87,6 +87,23 @@ export class ContextCompressorService {
           null,
           2,
         );
+      } else if (
+        toolName === "assemble_itinerary" ||
+        toolName === "resolve_conflict"
+      ) {
+        // Itinerary object: strip the verbose days[] array down to a summary
+        compressedJson = JSON.stringify(
+          this.compressItineraryForContext(rawResult),
+          null,
+          2,
+        );
+      } else if (toolName === "change_manager_delta") {
+        // Change delta: keep it small — affected IDs + conflict types only
+        compressedJson = JSON.stringify(
+          this.compressConflictResolution(rawResult),
+          null,
+          2,
+        );
       } else {
         // Generic JSON noise reduction for untyped tools: remove nulls and empty values
         compressedJson = JSON.stringify(
@@ -235,6 +252,82 @@ export class ContextCompressorService {
       bookingRequired: !!act.bookingRequired,
       notes: act.notes || act.editorial_summary || "",
     }));
+  }
+
+  /**
+   * Itinerary Context Compressor
+   *
+   * Produces a compact summary of the Itinerary for use in the LLM context
+   * window. The full itinerary object remains in graph state; only this
+   * lightweight snapshot is appended to `compressedContext`.
+   *
+   * Full itinerary: ~5,000 tokens
+   * Compressed summary: ~150 tokens  (97% reduction)
+   */
+  compressItineraryForContext(itinerary: any): any {
+    if (!itinerary || typeof itinerary !== "object") {
+      return { error: "Invalid itinerary" };
+    }
+
+    return {
+      id: itinerary.id,
+      status: itinerary.status,
+      totalCost: itinerary.totalCost,
+      outboundFlight: itinerary.outboundFlight
+        ? {
+            id: itinerary.outboundFlight.id,
+            airline: itinerary.outboundFlight.airline,
+            depart: itinerary.outboundFlight.departTime,
+            arrive: itinerary.outboundFlight.arriveTime,
+            price: itinerary.outboundFlight.totalPrice,
+            status: itinerary.outboundFlight.status,
+          }
+        : null,
+      returnFlight: itinerary.returnFlight
+        ? {
+            id: itinerary.returnFlight.id,
+            airline: itinerary.returnFlight.airline,
+            depart: itinerary.returnFlight.departTime,
+            arrive: itinerary.returnFlight.arriveTime,
+            price: itinerary.returnFlight.totalPrice,
+            status: itinerary.returnFlight.status,
+          }
+        : null,
+      hotel: itinerary.hotel
+        ? {
+            id: itinerary.hotel.id,
+            name: itinerary.hotel.name,
+            checkIn: itinerary.hotel.checkIn,
+            checkOut: itinerary.hotel.checkOut,
+            totalPrice: itinerary.hotel.totalPrice,
+          }
+        : null,
+      activityCount: (itinerary.activities ?? []).length,
+      dayCount: (itinerary.days ?? []).length,
+      // days[] is intentionally excluded — full data stays in graph state
+    };
+  }
+
+  /**
+   * Conflict Resolution Delta Compressor
+   *
+   * Produces a minimal change delta suitable for agent context windows.
+   * Used after change_manager runs to summarise what shifted.
+   */
+  compressConflictResolution(delta: any): any {
+    if (!delta || typeof delta !== "object") {
+      return { error: "Invalid delta" };
+    }
+
+    return {
+      changeType: delta.changeType,
+      affectedCount: (delta.affectedSegmentIds ?? []).length,
+      affectedSegmentIds: (delta.affectedSegmentIds ?? []).slice(0, 10),
+      newConflictCount: (delta.newConflicts ?? []).length,
+      conflictTypes: (delta.newConflicts ?? []).map(
+        (c: any) => c.conflictType ?? c.type,
+      ),
+    };
   }
 
   /**
