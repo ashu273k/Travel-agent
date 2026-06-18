@@ -30,7 +30,9 @@ export interface Resolution {
     | "remove"
     | "adjust_time"
     | "suggest_alternative"
-    | "add_buffer";
+    | "add_buffer"
+    | "replace_hotel"
+    | "replace_flight";
   explanation: string;
   updatedSegmentIds: string[];
 }

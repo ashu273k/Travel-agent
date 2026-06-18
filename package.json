@@ -15,7 +15,11 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run"
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/src/main",
+    "start:dev": "ts-node -r tsconfig-paths/register src/main.ts",
+    "test": "vitest run",
+    "seed:qdrant": "ts-node -r tsconfig-paths/register src/common/mock/seed-qdrant.ts"
   },
   "dependencies": {
     "@langchain/community": "^1.1.29",

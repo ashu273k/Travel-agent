@@ -23,6 +23,25 @@ describe("TravelGraphService E2E state machine", () => {
     buildSlidingWindowContext: vi.fn(),
   };
 
+  const mockTemplateService = {
+    findSimilar: vi.fn().mockResolvedValue(null), // No template fast-path in tests
+    saveTemplate: vi.fn().mockResolvedValue(undefined),
+  };
+
+  const mockSemanticCache = {
+    get: vi.fn().mockResolvedValue(null), // Always cache miss in tests
+    set: vi.fn().mockResolvedValue(undefined),
+  };
+
+  const mockSseService = {
+    emit: vi.fn(), // Swallow all SSE events
+  };
+
+  const mockQueueService = {
+    registerJobHandler: vi.fn(),
+    addJob: vi.fn().mockResolvedValue("mock-job-id"),
+  };
+
   const mockSearchFlightsTool = {
     execute: vi.fn().mockResolvedValue({
       result: JSON.stringify([
@@ -112,6 +131,15 @@ describe("TravelGraphService E2E state machine", () => {
     });
     mockContextManager.buildSlidingWindowContext.mockReturnValue("");
 
+    // Phase 4 mocks — re-establish after reset
+    mockTemplateService.findSimilar.mockResolvedValue(null);
+    mockTemplateService.saveTemplate.mockResolvedValue(undefined);
+    mockSemanticCache.get.mockResolvedValue(null);
+    mockSemanticCache.set.mockResolvedValue(undefined);
+    mockSseService.emit.mockReturnValue(undefined);
+    mockQueueService.registerJobHandler.mockReturnValue(undefined);
+    mockQueueService.addJob.mockResolvedValue("mock-job-id");
+
     // Set up mock implementations for LLM
     mockLlmService.complete.mockImplementation((nodeName, messages) => {
       if (nodeName === "intent-parser") {
@@ -188,6 +216,10 @@ describe("TravelGraphService E2E state machine", () => {
       mockTokenTracker as any,
       mockCompressor as any,
       mockContextManager as any,
+      mockTemplateService as any,
+      mockSemanticCache as any,
+      mockSseService as any,
+      mockQueueService as any,
       mockSearchFlightsTool as any,
       mockSearchHotelsTool as any,
       mockSearchActivitiesTool as any,
@@ -197,6 +229,8 @@ describe("TravelGraphService E2E state machine", () => {
       mockHandleFlightChangeTool as any,
       mockPropagateDownstreamTool as any,
     );
+    // Manually invoke NestJS lifecycle hook — not called by `new` in unit tests
+    travelGraphService.onModuleInit();
   });
 
   it("should successfully run the state machine from parsing to search to done", async () => {
