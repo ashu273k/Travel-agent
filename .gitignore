@@ -41,3 +41,6 @@ coverage/
 # Temporary files
 tmp/
 temp/
+
+# Next.js build output
+frontend/.next/
