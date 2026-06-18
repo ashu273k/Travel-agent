@@ -1,9 +1,11 @@
 import { Module, Global } from "@nestjs/common";
 import { PrismaService } from "./prisma.service";
 import { TripsRepository } from "./trips.repository";
+import { TripsController } from "./trips.controller";
 
 @Global()
 @Module({
+  controllers: [TripsController],
   providers: [
     PrismaService,
     {
@@ -13,4 +15,4 @@ import { TripsRepository } from "./trips.repository";
   ],
   exports: [PrismaService, "ITripsRepository"],
 })
-export class TripsModule {}
+export class TripsModule { }

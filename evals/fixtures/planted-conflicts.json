@@ -1,0 +1,70 @@
+[
+  {
+    "name": "check_in_before_landing",
+    "conflictType": "CHECK_IN_BEFORE_LANDING",
+    "itineraryPatch": {
+      "outboundFlight": {
+        "arriveTime": "2026-08-15T17:30:00Z"
+      },
+      "hotel": {
+        "checkInTime": "12:00"
+      }
+    }
+  },
+  {
+    "name": "activity_overlap",
+    "conflictType": "ACTIVITY_OVERLAP",
+    "activities": [
+      {
+        "id": "act-1",
+        "name": "Eiffel Tower Visit",
+        "type": "attraction",
+        "date": "2026-08-16",
+        "startTime": "2026-08-16T10:00:00Z",
+        "endTime": "2026-08-16T12:00:00Z",
+        "durationMins": 120,
+        "cost": 2500,
+        "location": "Eiffel Tower",
+        "bookingRequired": true,
+        "notes": ""
+      },
+      {
+        "id": "act-2",
+        "name": "Louvre Tour",
+        "type": "excursion",
+        "date": "2026-08-16",
+        "startTime": "2026-08-16T11:00:00Z",
+        "endTime": "2026-08-16T13:00:00Z",
+        "durationMins": 120,
+        "cost": 4500,
+        "location": "Louvre",
+        "bookingRequired": true,
+        "notes": ""
+      }
+    ]
+  },
+  {
+    "name": "hotel_gap",
+    "conflictType": "HOTEL_GAP",
+    "removeHotel": true
+  },
+  {
+    "name": "checkout_before_flight",
+    "conflictType": "CHECKOUT_BEFORE_FLIGHT",
+    "itineraryPatch": {
+      "hotel": {
+        "checkOutTime": "08:00"
+      },
+      "returnFlight": {
+        "departTime": "2026-08-20T22:00:00Z"
+      }
+    }
+  },
+  {
+    "name": "budget_exceeded",
+    "conflictType": "BUDGET_EXCEEDED",
+    "briefPatch": {
+      "budgetMax": 100000
+    }
+  }
+]

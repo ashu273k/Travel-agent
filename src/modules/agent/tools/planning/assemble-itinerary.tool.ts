@@ -6,29 +6,17 @@ import { LlmToolBase } from "../llm-tool.base";
 
 export const AssembleItineraryInputSchema = z.object({
   brief: z.any().describe("The travel brief constraints"),
-  flightOptions: z
-    .array(z.any())
-    .describe("The compressed flight options available"),
-  hotelOptions: z
-    .array(z.any())
-    .describe("The compressed hotel options available"),
-  activityOptions: z
-    .array(z.any())
-    .describe("The compressed activity options available"),
+  flightOptions: z.array(z.any()).describe("The compressed flight options available"),
+  hotelOptions: z.array(z.any()).describe("The compressed hotel options available"),
+  activityOptions: z.array(z.any()).describe("The compressed activity options available"),
 });
 
-export type AssembleItineraryInput = z.infer<
-  typeof AssembleItineraryInputSchema
->;
+export type AssembleItineraryInput = z.infer<typeof AssembleItineraryInputSchema>;
 
 @Injectable()
-export class AssembleItineraryTool extends LlmToolBase<
-  typeof AssembleItineraryInputSchema,
-  Itinerary
-> {
+export class AssembleItineraryTool extends LlmToolBase<typeof AssembleItineraryInputSchema, Itinerary> {
   readonly name = "assemble_itinerary";
-  readonly description =
-    "Assemble selected flight, hotel, and activity options into a structured day-by-day Itinerary.";
+  readonly description = "Assemble selected flight, hotel, and activity options into a structured day-by-day Itinerary.";
   readonly inputSchema = AssembleItineraryInputSchema;
 
   constructor(llmService: LlmService) {
@@ -49,7 +37,7 @@ Ensure:
     return `Brief: ${JSON.stringify(input.brief)}\nFlights: ${JSON.stringify(input.flightOptions)}\nHotels: ${JSON.stringify(input.hotelOptions)}\nActivities: ${JSON.stringify(input.activityOptions)}`;
   }
 
-  protected getFallbackResponse(response: string): Itinerary {
+  protected getFallbackResponse(response: string, _input: AssembleItineraryInput): Itinerary {
     return JSON.parse(response);
   }
 }
