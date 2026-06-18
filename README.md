@@ -134,7 +134,7 @@ Unlike static planners, this system behaves like an agent by:
 - Choudhary Khushboo Girdhareeram / choudhary.24bcs10142@sst.scaler.com
 - Aashu Kumar / aashu.24bcs10172@sst.scaler.com
 - Arhan Das / arhan.24bcs10023@sst.scaler.com
-- Adhyayan Gupta / 
+- Adhyayan Gupta / adhyayan.24bcs10055@sst.scaler.com
 - Assignment Category: Agentic AI  
 
 ---
