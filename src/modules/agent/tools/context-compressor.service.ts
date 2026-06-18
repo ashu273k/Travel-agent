@@ -25,14 +25,10 @@ export class ContextCompressorService {
     this.maxOutputBytes = this.configService.get<number>(
       "RTK_MAX_OUTPUT_BYTES",
       51200,
-    ); // 50KB cap
+    );
     this.tmpDir = os.tmpdir();
   }
 
-  /**
-   * Compresses raw tool output using the RTK binary if available, or falls back
-   * to TypeScript structural compression rules (LLD/SOLID design robustness).
-   */
   async compressToolResult(
     toolName: string,
     rawResult: any,
@@ -45,7 +41,6 @@ export class ContextCompressorService {
     const rawJson = JSON.stringify(rawResult, null, 2);
     const beforeBytes = Buffer.byteLength(rawJson, "utf8");
 
-    // Strategy 1: Attempt RTK compression if enabled
     if (this.rtkEnabled) {
       const rtkResult = await this.tryRtkCompression(toolName, rawJson);
       if (rtkResult !== null) {
@@ -59,7 +54,6 @@ export class ContextCompressorService {
       }
     }
 
-    // Strategy 2: Fallback to built-in TypeScript structural compressors
     this.logger.log(
       `Using built-in TypeScript compressor fallback for tool: ${toolName}`,
     );
@@ -91,21 +85,18 @@ export class ContextCompressorService {
         toolName === "assemble_itinerary" ||
         toolName === "resolve_conflict"
       ) {
-        // Itinerary object: strip the verbose days[] array down to a summary
         compressedJson = JSON.stringify(
           this.compressItineraryForContext(rawResult),
           null,
           2,
         );
       } else if (toolName === "change_manager_delta") {
-        // Change delta: keep it small — affected IDs + conflict types only
         compressedJson = JSON.stringify(
           this.compressConflictResolution(rawResult),
           null,
           2,
         );
       } else {
-        // Generic JSON noise reduction for untyped tools: remove nulls and empty values
         compressedJson = JSON.stringify(
           this.cleanGenericObject(rawResult),
           null,
@@ -124,7 +115,6 @@ export class ContextCompressorService {
       );
     }
 
-    // Enforce byte size cap for safety
     if (Buffer.byteLength(compressedJson, "utf8") > this.maxOutputBytes) {
       this.logger.warn(
         `Compressed output size exceeds cap. Truncating to ${this.maxOutputBytes} bytes.`,
@@ -142,9 +132,6 @@ export class ContextCompressorService {
     };
   }
 
-  /**
-   * Serialize raw JSON data to a temp file and invoke the RTK CLI proxy
-   */
   private async tryRtkCompression(
     toolName: string,
     rawJson: string,
@@ -156,17 +143,14 @@ export class ContextCompressorService {
 
     try {
       await fs.writeFile(tmpFile, rawJson, "utf8");
-
-      // Execute: rtk cat <file>
       const { stdout } = await execFileAsync(
         this.rtkBinPath,
         ["cat", tmpFile],
         {
-          maxBuffer: 10 * 1024 * 1024, // 10MB
-          timeout: 5000, // 5s timeout
+          maxBuffer: 10 * 1024 * 1024,
+          timeout: 5000,
         },
       );
-
       return stdout;
     } catch (err) {
       this.logger.warn(
@@ -174,18 +158,12 @@ export class ContextCompressorService {
       );
       return null;
     } finally {
-      // Clean up the temp file
       await fs.unlink(tmpFile).catch(() => {});
     }
   }
 
-  /**
-   * TypeScript Flight Response Compressor
-   * Reduces Raw Amadeus Flight Search outputs by removing nested metadata, fare segments, and details.
-   */
   compressFlightResponse(raw: any): any[] {
     const data = Array.isArray(raw) ? raw : raw?.data || [];
-
     return data.slice(0, 5).map((offer: any) => {
       const firstItinerary = offer.itineraries?.[0];
       const segments = firstItinerary?.segments || [];
@@ -202,7 +180,7 @@ export class ContextCompressorService {
         stops: segments.length - 1,
         priceINR: offer.price?.grandTotal
           ? Math.round(parseFloat(offer.price.grandTotal) * 84)
-          : 0, // Approx EUR to INR if needed
+          : 0,
         class:
           offer.travelerPricings?.[0]?.fareDetailsBySegment?.[0]?.cabin ||
           "ECONOMY",
@@ -211,13 +189,8 @@ export class ContextCompressorService {
     });
   }
 
-  /**
-   * TypeScript Hotel Response Compressor
-   * Compresses Booking.com response objects to retain only core pricing and localization records.
-   */
   compressHotelResponse(raw: any): any[] {
     const hotels = Array.isArray(raw) ? raw : raw?.data || raw?.hotels || [];
-
     return hotels.slice(0, 5).map((hotel: any) => ({
       id: hotel.id || hotel.hotelId,
       name: hotel.name,
@@ -234,15 +207,10 @@ export class ContextCompressorService {
     }));
   }
 
-  /**
-   * TypeScript Activity/Restaurant Response Compressor
-   * Trims Place API / Google Search verbose keys.
-   */
   compressActivityResponse(raw: any): any[] {
     const activities = Array.isArray(raw)
       ? raw
       : raw?.data || raw?.results || [];
-
     return activities.slice(0, 8).map((act: any) => ({
       id: act.id || act.place_id || act.activityId,
       name: act.name,
@@ -254,21 +222,9 @@ export class ContextCompressorService {
     }));
   }
 
-  /**
-   * Itinerary Context Compressor
-   *
-   * Produces a compact summary of the Itinerary for use in the LLM context
-   * window. The full itinerary object remains in graph state; only this
-   * lightweight snapshot is appended to `compressedContext`.
-   *
-   * Full itinerary: ~5,000 tokens
-   * Compressed summary: ~150 tokens  (97% reduction)
-   */
   compressItineraryForContext(itinerary: any): any {
-    if (!itinerary || typeof itinerary !== "object") {
+    if (!itinerary || typeof itinerary !== "object")
       return { error: "Invalid itinerary" };
-    }
-
     return {
       id: itinerary.id,
       status: itinerary.status,
@@ -304,21 +260,11 @@ export class ContextCompressorService {
         : null,
       activityCount: (itinerary.activities ?? []).length,
       dayCount: (itinerary.days ?? []).length,
-      // days[] is intentionally excluded — full data stays in graph state
     };
   }
 
-  /**
-   * Conflict Resolution Delta Compressor
-   *
-   * Produces a minimal change delta suitable for agent context windows.
-   * Used after change_manager runs to summarise what shifted.
-   */
   compressConflictResolution(delta: any): any {
-    if (!delta || typeof delta !== "object") {
-      return { error: "Invalid delta" };
-    }
-
+    if (!delta || typeof delta !== "object") return { error: "Invalid delta" };
     return {
       changeType: delta.changeType,
       affectedCount: (delta.affectedSegmentIds ?? []).length,
@@ -330,14 +276,10 @@ export class ContextCompressorService {
     };
   }
 
-  /**
-   * Helper to clean null/empty attributes from generic objects
-   */
   private cleanGenericObject(obj: any): any {
     if (obj === null || obj === undefined) return obj;
-    if (Array.isArray(obj)) {
+    if (Array.isArray(obj))
       return obj.slice(0, 10).map((item) => this.cleanGenericObject(item));
-    }
     if (typeof obj === "object") {
       const cleaned: any = {};
       for (const key of Object.keys(obj)) {
@@ -372,7 +314,6 @@ export class ContextCompressorService {
 
   private parseDuration(durStr?: string): number {
     if (!durStr) return 0;
-    // Parses ISO 8601 duration e.g., PT12H30M to minutes
     try {
       const match = durStr.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
       if (!match) return 0;

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { HotelSearchRequest } from "../../../common/types/search.types";
 import { QdrantService } from "../../memory/qdrant.service";
@@ -8,19 +8,20 @@ import {
   generateMockHotels,
   MockHotelSearchRequest,
 } from "../../../common/mock/travel-mock-data";
+import { SearchServiceBase } from "../search-service.base";
 
 @Injectable()
-export class BookingService {
-  private readonly logger = new Logger(BookingService.name);
+export class BookingService extends SearchServiceBase {
   private apiKey?: string;
   private useMock = false;
 
   constructor(
-    private readonly configService: ConfigService,
+    configService: ConfigService,
+    redisService: RedisService,
     private readonly qdrantService: QdrantService,
     private readonly embeddingsService: EmbeddingsService,
-    private readonly redisService: RedisService,
   ) {
+    super(configService, redisService, BookingService.name);
     this.apiKey = this.configService.get<string>("BOOKING_COM_API_KEY");
 
     if (!this.apiKey || this.apiKey === "..." || this.apiKey === "") {
@@ -31,19 +32,15 @@ export class BookingService {
     }
   }
 
-  /**
-   * Search for hotels using a hybrid combination of Qdrant semantic search
-   * (for preferences) and Booking.com API checks (for live pricing/availability).
-   */
   async searchHotels(req: HotelSearchRequest): Promise<any[]> {
     const cacheKey = `hotels:${req.destination}:${req.checkIn}:${req.checkOut}:${req.guests}:${req.accommodationType || "any"}`;
-    return this.redisService.getOrSearch(cacheKey, 600, async () => {
+
+    return this.getOrSearch(cacheKey, 600, async () => {
       this.logger.log(
         `Searching hotels in ${req.destination} from ${req.checkIn} to ${req.checkOut}...`,
       );
 
       try {
-        // 1. Vector similarity search on user description/destination preferences
         const queryText = `A beautiful, comfortable hotel in ${req.destination} with stars rating ${req.accommodationType || "hotel"}`;
         const vector = await this.embeddingsService.embedQuery(queryText);
 
@@ -55,12 +52,10 @@ export class BookingService {
 
         if (qdrantResults.length > 0) {
           this.logger.log(
-            `` +
-              `Found ${qdrantResults.length} hotels matching preferences in Qdrant.`,
+            `Found ${qdrantResults.length} hotels matching preferences in Qdrant.`,
           );
           return qdrantResults.map((qr) => {
             const hotel = qr.payload;
-            // Calculate total price based on date range
             const nights = this.calculateNights(req.checkIn, req.checkOut);
             return {
               id: hotel.id,
@@ -83,7 +78,6 @@ export class BookingService {
         );
       }
 
-      // Default mock list if Qdrant collections are empty or offline
       return generateMockHotels(req as MockHotelSearchRequest);
     });
   }

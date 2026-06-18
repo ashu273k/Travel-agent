@@ -10,20 +10,14 @@ export class ContextManagerService {
   private readonly logger = new Logger(ContextManagerService.name);
   private readonly MAX_VERBATIM_TOOL_CALLS = 3;
 
-  /**
-   * Separates the state context into a stable prefix and a dynamic tail.
-   * This structure enables LLMs like Claude or Gemini to cache the system instructions
-   * and tool definitions efficiently.
-   */
   buildCachedPayload(
     state: TravelAgentState,
     systemRole: string,
     toolSchemas: any[],
   ): {
-    systemPrompt: string; // STABLE PREFIX (cached)
-    userPrompt: string; // DYNAMIC TAIL (sent fresh every turn)
+    systemPrompt: string;
+    userPrompt: string;
   } {
-    // 1. Stable Cached Prefix
     const systemPrompt = [
       systemRole,
       "## Tools Available",
@@ -35,7 +29,6 @@ export class ContextManagerService {
       "- Budget constraints are primary boundaries. Swapping or downgrading elements is preferred over budget overruns.",
     ].join("\n\n");
 
-    // 2. Dynamic Tail (Sent fresh)
     const dynamicTailParts = [
       `Today's Date: ${new Date().toISOString().split("T")[0]}`,
       `Trip Session ID: ${state.sessionId}`,
@@ -54,20 +47,11 @@ export class ContextManagerService {
 
     const userPrompt = dynamicTailParts.join("\n\n");
 
-    return {
-      systemPrompt,
-      userPrompt,
-    };
+    return { systemPrompt, userPrompt };
   }
 
-  /**
-   * Compresses the tool execution logs into a sliding window context.
-   * Keeps the last N tool calls verbatim, while condensing all older ones to single summary lines.
-   */
   buildSlidingWindowContext(toolCallLog: ToolCallEntry[]): string {
-    if (!toolCallLog || toolCallLog.length === 0) {
-      return "";
-    }
+    if (!toolCallLog || toolCallLog.length === 0) return "";
 
     const totalCalls = toolCallLog.length;
     const verbatimCalls = toolCallLog.slice(-this.MAX_VERBATIM_TOOL_CALLS);
@@ -75,7 +59,6 @@ export class ContextManagerService {
 
     const parts: string[] = [];
 
-    // Older calls -> summarized
     if (olderCalls.length > 0) {
       parts.push("### Prior Action Summary");
       const olderSummary = olderCalls
@@ -87,7 +70,6 @@ export class ContextManagerService {
       parts.push(olderSummary);
     }
 
-    // Recent calls -> verbatim
     parts.push(
       `### Verbatim Recent Tool Outputs (Last ${verbatimCalls.length} calls)`,
     );
@@ -106,9 +88,6 @@ export class ContextManagerService {
     return parts.join("\n\n");
   }
 
-  /**
-   * Renders the current itinerary state in a compact representation
-   */
   private buildTaskStateSummary(state: TravelAgentState): string {
     const brief = state.parsedBrief;
     const itinerary = state.itinerary;
@@ -130,15 +109,9 @@ export class ContextManagerService {
     ].join("\n");
   }
 
-  /**
-   * Renders a short summary of the agent's recent thinking steps
-   */
   private buildRecentThoughtsSummary(thoughtLog: ThoughtEntry[]): string {
-    if (!thoughtLog || thoughtLog.length === 0) {
-      return "";
-    }
-
-    const recentThoughts = thoughtLog.slice(-3); // Keep last 3 thoughts
+    if (!thoughtLog || thoughtLog.length === 0) return "";
+    const recentThoughts = thoughtLog.slice(-3);
     return [
       "## Agent Thinking History (Recent Steps)",
       recentThoughts

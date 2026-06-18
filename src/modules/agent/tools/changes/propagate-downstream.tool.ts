@@ -35,7 +35,7 @@ export class PropagateDownstreamTool {
   }): Promise<{ conflicts: Conflict[] }> {
     const { itinerary, changedSegmentId, affectedSegmentIds } = input;
     this.logger.log(
-      `Propagating downstream changes from segment ${changedSegmentId} across affected segments: ${affectedSegmentIds.join(", ")}`,
+      `Propagating downstream changes from segment ${changedSegmentId}`,
     );
 
     const detection = await this.detectConflictsTool.execute({ itinerary });

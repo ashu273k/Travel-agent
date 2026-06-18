@@ -1,34 +1,33 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { ActivitySearchRequest } from "../../common/types/search.types";
-import { QdrantService } from "../memory/qdrant.service";
-import { EmbeddingsService } from "../memory/embeddings.service";
-import { RedisService } from "../cache/redis.service";
+import { ActivitySearchRequest } from "../../../common/types/search.types";
+import { QdrantService } from "../../memory/qdrant.service";
+import { EmbeddingsService } from "../../memory/embeddings.service";
+import { RedisService } from "../../cache/redis.service";
 import {
   generateMockActivities,
   MockActivitySearchRequest,
-} from "../../common/mock/travel-mock-data";
+} from "../../../common/mock/travel-mock-data";
+import { SearchServiceBase } from "../search-service.base";
 
 @Injectable()
-export class ActivitiesService {
-  private readonly logger = new Logger(ActivitiesService.name);
+export class ActivitiesService extends SearchServiceBase {
   private googleKey?: string;
 
   constructor(
-    private readonly configService: ConfigService,
+    configService: ConfigService,
+    redisService: RedisService,
     private readonly qdrantService: QdrantService,
     private readonly embeddingsService: EmbeddingsService,
-    private readonly redisService: RedisService,
   ) {
+    super(configService, redisService, ActivitiesService.name);
     this.googleKey = this.configService.get<string>("GOOGLE_PLACES_API_KEY");
   }
 
-  /**
-   * Search for activities at the destination using Qdrant vector retrieval or mock Places fallback
-   */
   async searchActivities(req: ActivitySearchRequest): Promise<any[]> {
     const cacheKey = `activities:${req.destination}:${req.startDate}:${req.endDate}:${req.interests?.join(",") || "all"}`;
-    return this.redisService.getOrSearch(cacheKey, 3600, async () => {
+
+    return this.getOrSearch(cacheKey, 3600, async () => {
       this.logger.log(`Searching activities in ${req.destination}...`);
 
       try {

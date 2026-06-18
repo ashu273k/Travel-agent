@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { FlightSearchRequest } from "../../../common/types/search.types";
 import { RedisService } from "../../cache/redis.service";
@@ -6,18 +6,16 @@ import {
   generateMockFlights,
   MockFlightSearchRequest,
 } from "../../../common/mock/travel-mock-data";
+import { SearchServiceBase } from "../search-service.base";
 
 @Injectable()
-export class AmadeusService {
-  private readonly logger = new Logger(AmadeusService.name);
+export class AmadeusService extends SearchServiceBase {
   private apiKey?: string;
   private apiSecret?: string;
   private useMock = false;
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly redisService: RedisService,
-  ) {
+  constructor(configService: ConfigService, redisService: RedisService) {
+    super(configService, redisService, AmadeusService.name);
     this.apiKey = this.configService.get<string>("AMADEUS_API_KEY");
     this.apiSecret = this.configService.get<string>("AMADEUS_API_SECRET");
 
@@ -34,12 +32,10 @@ export class AmadeusService {
     }
   }
 
-  /**
-   * Search for flights using Amadeus API, with mock fallback.
-   */
   async searchFlights(req: FlightSearchRequest): Promise<any> {
     const cacheKey = `flights:${req.origin}:${req.destination}:${req.date}:${req.travellers}:${req.preferredClass || "economy"}`;
-    return this.redisService.getOrSearch(cacheKey, 300, async () => {
+
+    return this.getOrSearch(cacheKey, 300, async () => {
       this.logger.log(
         `Searching flights from ${req.origin} to ${req.destination} for date ${req.date}...`,
       );
@@ -95,7 +91,4 @@ export class AmadeusService {
     const data = await response.json();
     return data.access_token;
   }
-
-  // generateMockFlights is now centralised in src/common/mock/travel-mock-data.ts
-  // It is imported above and called as a pure function.
 }
