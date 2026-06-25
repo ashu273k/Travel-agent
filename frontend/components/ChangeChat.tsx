@@ -7,6 +7,7 @@ import { requestChange } from "@/lib/api";
 interface ChangeChatProps {
   sessionId: string;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 const CHANGE_TYPES = [
@@ -20,7 +21,7 @@ const CHANGE_TYPES = [
 
 type SubmitStatus = "idle" | "loading" | "success" | "error";
 
-export default function ChangeChat({ sessionId, onClose }: ChangeChatProps) {
+export default function ChangeChat({ sessionId, onClose, onSuccess }: ChangeChatProps) {
   const [changeType, setChangeType] = useState(CHANGE_TYPES[0].value);
   const [bookingRef, setBookingRef] = useState("");
   const [notes, setNotes] = useState("");
@@ -44,6 +45,7 @@ export default function ChangeChat({ sessionId, onClose }: ChangeChatProps) {
 
       await requestChange(sessionId, changeType, bookingRef.trim(), newDetails);
       setStatus("success");
+      onSuccess?.();
     } catch (err) {
       setErrorMsg(
         err instanceof Error ? err.message : "Failed to submit change request. Please try again."

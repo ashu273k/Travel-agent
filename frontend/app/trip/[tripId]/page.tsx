@@ -185,6 +185,17 @@ export default function TripPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
+  const handleChangeSuccess = () => {
+    setShowChangePanel(false);
+    setItinerary(null);
+    setConflictCount(0);
+    setSteps(INITIAL_STEPS.map((s, i) => (i === 0 ? { ...s, status: "active" } : s)));
+    setPageState("streaming");
+
+    const cleanup = streamSession(sessionId, handleEvent, handleDone, handleError);
+    cleanupRef.current = cleanup;
+  };
+
   const handleConfirmBooking = async () => {
     setConfirming(true);
     setConfirmError(null);
@@ -356,7 +367,11 @@ export default function TripPage({
       </main>
 
       {showChangePanel && sessionId && (
-        <ChangeChat sessionId={sessionId} onClose={() => setShowChangePanel(false)} />
+        <ChangeChat
+          sessionId={sessionId}
+          onClose={() => setShowChangePanel(false)}
+          onSuccess={handleChangeSuccess}
+        />
       )}
     </div>
   );

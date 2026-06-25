@@ -256,6 +256,7 @@ export class TravelGraphService implements OnModuleInit {
             destination: brief.destination,
             date: brief.departureDate,
             travellers: brief.travellers,
+            preferredClass: this.derivePreferredClass(brief.specialRequirements),
           }),
       cachedHotels
         ? Promise.resolve({
@@ -267,6 +268,7 @@ export class TravelGraphService implements OnModuleInit {
             checkIn: brief.departureDate,
             checkOut: brief.returnDate ?? brief.departureDate,
             guests: brief.travellers,
+            accommodationType: this.deriveAccommodationType(brief.accommodationPrefs),
           }),
       cachedActs
         ? Promise.resolve({
@@ -550,6 +552,38 @@ export class TravelGraphService implements OnModuleInit {
           affectedSegmentIds = [updatedItinerary.hotel.id];
           updatedItinerary.hotel = undefined;
         } else throw new Error("Hotel not found.");
+      } else if (changeType === "activity_change") {
+        const activity = updatedItinerary.activities?.find(
+          (a) => a.bookingRef === affectedBookingRef,
+        );
+        if (!activity) throw new Error("Activity not found.");
+        affectedSegmentIds = [activity.id];
+        const updated = {
+          ...activity,
+          ...(newDetails?.name ? { name: String(newDetails.name) } : {}),
+          ...(newDetails?.startTime ? { startTime: String(newDetails.startTime) } : {}),
+          ...(newDetails?.endTime ? { endTime: String(newDetails.endTime) } : {}),
+          ...(newDetails?.notes ? { notes: String(newDetails.notes) } : {}),
+        };
+        updatedItinerary.activities = updatedItinerary.activities.map((a) =>
+          a.id === activity.id ? updated : a,
+        );
+        updatedItinerary.days = updatedItinerary.days.map((day) => ({
+          ...day,
+          items: day.items.map((item) =>
+            "bookingRef" in item && item.bookingRef === affectedBookingRef
+              ? updated
+              : item,
+          ),
+        }));
+      } else if (changeType === "passenger_change") {
+        const newCount = newDetails?.travellers ?? newDetails?.passengerCount;
+        if (!newCount || typeof newCount !== "number" || newCount < 1)
+          throw new Error("Valid traveller count required.");
+        if (updatedItinerary.brief) {
+          updatedItinerary.brief = { ...updatedItinerary.brief, travellers: newCount };
+        }
+        affectedSegmentIds = [];
       }
 
       const propagation = await this.propagateDownstreamTool.execute({
@@ -631,6 +665,28 @@ export class TravelGraphService implements OnModuleInit {
         },
       ],
     };
+  }
+
+  private derivePreferredClass(
+    reqs: string[],
+  ): "economy" | "premium_economy" | "business" | undefined {
+    const lower = reqs.map((r) => r.toLowerCase());
+    if (lower.some((r) => r.includes("business"))) return "business";
+    if (lower.some((r) => r.includes("premium"))) return "premium_economy";
+    if (lower.some((r) => r.includes("economy"))) return "economy";
+    return undefined;
+  }
+
+  private deriveAccommodationType(
+    prefs: string[],
+  ): "hotel" | "hostel" | "apartment" | "resort" | "any" | undefined {
+    const lower = prefs.map((p) => p.toLowerCase());
+    if (lower.some((p) => p.includes("hostel"))) return "hostel";
+    if (lower.some((p) => p.includes("apartment") || p.includes("airbnb")))
+      return "apartment";
+    if (lower.some((p) => p.includes("resort"))) return "resort";
+    if (lower.some((p) => p.includes("hotel"))) return "hotel";
+    return undefined;
   }
 
   async execute(

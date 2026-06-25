@@ -97,9 +97,12 @@ export class TripsController {
         changeType:
           | "flight_delay"
           | "flight_cancellation"
-          | "hotel_cancellation";
+          | "date_change"
+          | "hotel_cancellation"
+          | "activity_change"
+          | "passenger_change";
         affectedBookingRef: string;
-        newDetails?: { newTime?: string };
+        newDetails?: Record<string, unknown>;
       };
     },
   ) {

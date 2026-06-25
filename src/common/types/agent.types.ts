@@ -52,7 +52,9 @@ export interface ChangeRequest {
     | "flight_delay"
     | "flight_cancellation"
     | "date_change"
-    | "hotel_cancellation";
+    | "hotel_cancellation"
+    | "activity_change"
+    | "passenger_change";
   affectedBookingRef: string;
   newDetails?: Record<string, unknown>;
   timestamp: string;
