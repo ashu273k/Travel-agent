@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { ITripsRepository } from "./trips.repository.interface";
 import { TravelGraphService } from "../agent/graph/travel-graph";
+import { SseService } from "../notifications/sse.service";
 import { TripStatus } from "@prisma/client";
 
 @Controller("api")
@@ -17,6 +18,7 @@ export class TripsController {
     @Inject("ITripsRepository")
     private readonly tripsRepository: ITripsRepository,
     private readonly travelGraph: TravelGraphService,
+    private readonly sseService: SseService,
   ) {}
 
   @Post("sessions/create")
@@ -62,8 +64,9 @@ export class TripsController {
           toolCallLog: finalState.toolCallLog,
         });
       } catch (err) {
-        await this.tripsRepository.updateSession(session.id, {
-          status: "failed",
+        await this.tripsRepository.updateSession(session.id, { status: "failed" });
+        this.sseService.emit(session.id, "graph:error", {
+          message: err instanceof Error ? err.message : "Graph execution failed",
         });
       }
     })();
@@ -134,8 +137,9 @@ export class TripsController {
           toolCallLog: finalState.toolCallLog,
         });
       } catch (err) {
-        await this.tripsRepository.updateSession(session.id, {
-          status: "failed",
+        await this.tripsRepository.updateSession(session.id, { status: "failed" });
+        this.sseService.emit(session.id, "graph:error", {
+          message: err instanceof Error ? err.message : "Graph execution failed",
         });
       }
     })();

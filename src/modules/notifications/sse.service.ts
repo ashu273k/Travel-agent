@@ -65,12 +65,6 @@ export class SseService {
     type: SseEventType,
     payload: Record<string, unknown> = {},
   ): void {
-    const channel = this.channels.get(sessionId);
-    if (!channel) {
-      // No active subscriber — drop silently (client may not be listening yet)
-      return;
-    }
-
     const event: SseEvent = {
       type,
       sessionId,
@@ -78,15 +72,23 @@ export class SseService {
       payload,
     };
 
+    // Always cache terminal events so late subscribers (race condition: graph
+    // finishes before the SSE client connects) still receive the final event.
+    if (type === "graph:complete" || type === "graph:error") {
+      this.completedSessions.set(sessionId, event);
+      setTimeout(() => this.completedSessions.delete(sessionId), 10 * 60 * 1000);
+    }
+
+    const channel = this.channels.get(sessionId);
+    if (!channel) {
+      return;
+    }
+
     this.logger.debug(`SSE emit [${sessionId}] → ${type}`);
     channel.emit("event", event);
 
-    // Auto-cleanup after terminal events
     if (type === "graph:complete" || type === "graph:error") {
-      this.completedSessions.set(sessionId, event);
       setTimeout(() => this.destroyChannel(sessionId), 500);
-      // Remove from completed cache after 10 minutes
-      setTimeout(() => this.completedSessions.delete(sessionId), 10 * 60 * 1000);
     }
   }
 
