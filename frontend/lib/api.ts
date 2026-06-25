@@ -1,6 +1,6 @@
 import type { Itinerary } from "./types";
 
-const BACKEND = "http://localhost:3000";
+const BACKEND = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000").replace(/\/api$/, "");
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {

@@ -14,7 +14,12 @@ import {
   CheckCircle2,
   TrendingUp,
   Zap,
+  ExternalLink,
 } from "lucide-react";
+
+function mapsUrl(query: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
 import DayCard from "./DayCard";
 
 function fmt(amount: number): string {
@@ -149,10 +154,17 @@ function HotelCard({ hotel }: { hotel: Hotel }) {
 
       <div className="p-5">
         <p className="text-lg font-bold text-slate-900">{hotel.name}</p>
-        <p className="flex items-center gap-1 text-slate-500 text-sm mt-1">
+        <a
+          href={mapsUrl(hotel.address)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-slate-500 hover:text-violet-600 text-sm mt-1 group transition-colors"
+          title="View on Google Maps"
+        >
           <MapPin size={13} />
-          {hotel.address}
-        </p>
+          <span>{hotel.address}</span>
+          <ExternalLink size={11} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+        </a>
 
         <div className="grid grid-cols-2 gap-3 mt-4">
           <div className="bg-violet-50 rounded-xl p-3">

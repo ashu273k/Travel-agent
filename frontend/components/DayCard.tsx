@@ -12,7 +12,12 @@ import {
   Clock,
   IndianRupee,
   ArrowRight,
+  ExternalLink,
 } from "lucide-react";
+
+function mapsUrl(query: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
 
 function formatTime(timeStr: string): string {
   if (!timeStr) return "";
@@ -101,7 +106,20 @@ function HotelItem({ hotel }: { hotel: Hotel }) {
         <Building2 className="text-white" size={14} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-slate-800 text-sm truncate">{hotel.name}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="font-semibold text-slate-800 text-sm truncate">{hotel.name}</p>
+          {hotel.address && (
+            <a
+              href={mapsUrl(hotel.address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-violet-400 hover:text-violet-600 flex-shrink-0"
+              title="View on Google Maps"
+            >
+              <ExternalLink size={11} />
+            </a>
+          )}
+        </div>
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-yellow-400 text-xs">{"★".repeat(hotel.stars)}</span>
           <span className="text-xs text-slate-400">Check-in {hotel.checkInTime}</span>
@@ -129,9 +147,17 @@ function ActivityItem({ activity }: { activity: Activity }) {
       <div className="flex-1 min-w-0">
         <p className={`font-semibold text-sm ${s.text}`}>{activity.name}</p>
         {activity.location && (
-          <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1 truncate">
-            <MapPin size={10} className="flex-shrink-0" /> {activity.location}
-          </p>
+          <a
+            href={mapsUrl(activity.location)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-slate-500 hover:text-slate-700 mt-0.5 flex items-center gap-1 truncate group"
+            title="View on Google Maps"
+          >
+            <MapPin size={10} className="flex-shrink-0" />
+            <span className="truncate">{activity.location}</span>
+            <ExternalLink size={9} className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </a>
         )}
         <div className="flex items-center gap-3 mt-1 flex-wrap">
           {activity.startTime && (

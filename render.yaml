@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: travel-agent-backend
+    runtime: node
+    rootDir: .
+    buildCommand: npm install --legacy-peer-deps && npx prisma generate && npm run build
+    startCommand: node dist/main.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: LLM_DEFAULT_PROVIDER
+        value: groq
+      - key: RTK_ENABLED
+        value: false
