@@ -565,12 +565,12 @@ export class TravelGraphService implements OnModuleInit {
           ...(newDetails?.endTime ? { endTime: String(newDetails.endTime) } : {}),
           ...(newDetails?.notes ? { notes: String(newDetails.notes) } : {}),
         };
-        updatedItinerary.activities = updatedItinerary.activities.map((a) =>
+        updatedItinerary.activities = (updatedItinerary.activities ?? []).map((a) =>
           a.id === activity.id ? updated : a,
         );
-        updatedItinerary.days = updatedItinerary.days.map((day) => ({
+        updatedItinerary.days = (updatedItinerary.days ?? []).map((day) => ({
           ...day,
-          items: day.items.map((item) =>
+          items: (day.items ?? []).map((item) =>
             "bookingRef" in item && item.bookingRef === affectedBookingRef
               ? updated
               : item,
@@ -668,9 +668,9 @@ export class TravelGraphService implements OnModuleInit {
   }
 
   private derivePreferredClass(
-    reqs: string[],
+    reqs: string[] | null | undefined,
   ): "economy" | "premium_economy" | "business" | undefined {
-    const lower = reqs.map((r) => r.toLowerCase());
+    const lower = (reqs ?? []).map((r) => r.toLowerCase());
     if (lower.some((r) => r.includes("business"))) return "business";
     if (lower.some((r) => r.includes("premium"))) return "premium_economy";
     if (lower.some((r) => r.includes("economy"))) return "economy";
@@ -678,9 +678,9 @@ export class TravelGraphService implements OnModuleInit {
   }
 
   private deriveAccommodationType(
-    prefs: string[],
+    prefs: string[] | null | undefined,
   ): "hotel" | "hostel" | "apartment" | "resort" | "any" | undefined {
-    const lower = prefs.map((p) => p.toLowerCase());
+    const lower = (prefs ?? []).map((p) => p.toLowerCase());
     if (lower.some((p) => p.includes("hostel"))) return "hostel";
     if (lower.some((p) => p.includes("apartment") || p.includes("airbnb")))
       return "apartment";
