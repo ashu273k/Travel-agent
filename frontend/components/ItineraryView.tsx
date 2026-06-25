@@ -219,10 +219,11 @@ export default function ItineraryView({ itinerary }: ItineraryViewProps) {
     (sum, a) => sum + (a.cost ?? 0),
     0
   );
+  const days = itinerary.days ?? [];
 
   const origin = brief?.origin ?? itinerary.outboundFlight?.origin ?? "—";
   const destination = brief?.destination ?? itinerary.outboundFlight?.destination ?? "—";
-  const nights = itinerary.days?.length > 0 ? itinerary.days.length - 1 : undefined;
+  const nights = days.length > 0 ? days.length - 1 : undefined;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -348,11 +349,11 @@ export default function ItineraryView({ itinerary }: ItineraryViewProps) {
       )}
 
       {/* Day-by-day */}
-      {itinerary.days?.length > 0 && (
+      {days.length > 0 && (
         <section>
           <SectionHeader icon={<Calendar size={16} className="text-indigo-500" />} label="Day-by-Day Itinerary" />
           <div className="space-y-4">
-            {itinerary.days.map((day, idx) => (
+            {days.map((day, idx) => (
               <DayCard key={day.date || idx} day={day} dayNumber={idx + 1} />
             ))}
           </div>

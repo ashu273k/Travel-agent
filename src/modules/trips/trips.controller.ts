@@ -85,6 +85,7 @@ export class TripsController {
   async getItinerary(@Param("tripId") tripId: string) {
     const trip = await this.tripsRepository.getTrip(tripId);
     if (!trip) throw new NotFoundException("Trip not found");
+    if (!trip.itinerary) throw new NotFoundException("Itinerary not ready yet");
     return trip.itinerary;
   }
 

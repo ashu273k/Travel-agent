@@ -3,11 +3,16 @@ import type { Itinerary } from "./types";
 const BACKEND = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000").replace(/\/api$/, "");
 
 async function handleResponse<T>(res: Response): Promise<T> {
+  const text = await res.text().catch(() => "");
   if (!res.ok) {
-    const text = await res.text().catch(() => "Unknown error");
-    throw new Error(`HTTP ${res.status}: ${text}`);
+    throw new Error(`HTTP ${res.status}: ${text || "Unknown error"}`);
   }
-  return res.json() as Promise<T>;
+  if (!text) throw new Error("Server returned an empty response");
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`Invalid response from server: ${text.slice(0, 100)}`);
+  }
 }
 
 export async function submitBrief(

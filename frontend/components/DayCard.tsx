@@ -203,6 +203,7 @@ function formatDayHeader(dateStr: string): string {
 }
 
 export default function DayCard({ day, dayNumber }: { day: DayPlan; dayNumber: number }) {
+  const items = day.items ?? [];
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
       {/* Header */}
@@ -215,16 +216,16 @@ export default function DayCard({ day, dayNumber }: { day: DayPlan; dayNumber: n
           <p className="font-bold text-slate-800 text-sm">{formatDayHeader(day.date)}</p>
         </div>
         <div className="ml-auto text-xs text-slate-400 font-medium">
-          {day.items.length} {day.items.length === 1 ? "item" : "items"}
+          {items.length} {items.length === 1 ? "item" : "items"}
         </div>
       </div>
 
       {/* Items */}
       <div className="p-4 space-y-2.5">
-        {day.items.length === 0 ? (
+        {items.length === 0 ? (
           <p className="text-slate-400 text-sm text-center py-6">Free day — explore at your own pace</p>
         ) : (
-          day.items.map((item, idx) => {
+          items.map((item, idx) => {
             if (isFlightItem(item)) return <FlightItem key={item.id || idx} flight={item} />;
             if (isHotelItem(item)) return <HotelItem key={item.id || idx} hotel={item} />;
             return <ActivityItem key={(item as Activity).id || idx} activity={item as Activity} />;
